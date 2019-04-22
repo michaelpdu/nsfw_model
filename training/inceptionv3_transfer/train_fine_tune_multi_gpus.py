@@ -6,6 +6,7 @@ from keras.optimizers import SGD
 from pathlib import Path
 from keras.models import Sequential, Model, load_model
 from keras.utils import multi_gpu_model
+import tensorflow as tf
 
 # reusable stuff
 import constants
@@ -37,7 +38,7 @@ def init_model(model_file, weights_file):
             model.load_weights(weights_file)
     return model
 
-def fine_tune_model(nb_gpu):
+def fine_tune_model(image_dir, nb_gpu):
     # No kruft plz
     clear_session()
 
@@ -74,7 +75,8 @@ def fine_tune_model(nb_gpu):
     )
 
     # Get training/validation data via generators
-    train_generator, validation_generator = generators.create_generators(height, width, nb_gpu)
+    train_generator, validation_generator = generators.create_generators(\
+        height, width, image_dir=image_dir, nb_gpu=nb_gpu)
 
     print('Start training!')
     history = model.fit_generator(
@@ -98,6 +100,7 @@ def fine_tune_model(nb_gpu):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-g", "--gpus", type=int, defalut=1, help="Number of GPUs")
+    parser.add_argument("image_dir", type=str, help="Path to image data, which includes train/test folders")
+    parser.add_argument("-g", "--gpus", type=int, default=1, help="Number of GPUs")
     args = parser.parse_args()
-    fine_tune_model(args.gpus)
+    fine_tune_model(args.image_dir, args.gpus)

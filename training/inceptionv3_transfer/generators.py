@@ -19,10 +19,11 @@ validation_datagen = ImageDataGenerator(
     rescale=1./255
 )
 
-train_dir = os.path.join(constants.BASE_DIR, 'train')
-test_dir = os.path.join(constants.BASE_DIR, 'test')
+def create_generators(height, width, image_dir=constants.BASE_DIR, nb_gpu=1):
+    print('Base dir:', image_dir)
+    train_dir = os.path.join(image_dir, 'train')
+    test_dir = os.path.join(image_dir, 'test')
 
-def create_generators(height, width, nb_gpu=1):
     train_generator = train_datagen.flow_from_directory(
         train_dir,
         target_size=(height, width),
