@@ -1,4 +1,5 @@
 import os
+import time
 import argparse
 from keras.preprocessing.image import ImageDataGenerator
 from keras.backend import clear_session
@@ -7,6 +8,8 @@ from pathlib import Path
 from keras.models import Sequential, Model, load_model
 from keras.utils import multi_gpu_model
 import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
 
 # reusable stuff
 import constants
@@ -38,15 +41,15 @@ def init_model(model_file, weights_file):
             model.load_weights(weights_file)
     return model
 
-def fine_tune_model(image_dir, nb_gpu):
+def fine_tune_model(model_file, image_dir, nb_gpu):
     # No kruft plz
     clear_session()
 
     # Config
     height = constants.SIZES['basic']
     width = height
-    model_file = "nsfw." + str(width) + "x" + str(height) + ".h5"
-    weights_file = "weights.best_inception" + str(height) + ".hdf5"
+    # model_file = "nsfw." + str(width) + "x" + str(height) + ".h5"
+    weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
@@ -79,6 +82,7 @@ def fine_tune_model(image_dir, nb_gpu):
         height, width, image_dir=image_dir, nb_gpu=nb_gpu)
 
     print('Start training!')
+    start = time.time()
     history = model.fit_generator(
         train_generator,
         callbacks=callbacks_list,
@@ -94,14 +98,36 @@ def fine_tune_model(image_dir, nb_gpu):
         validation_data=validation_generator,
         validation_steps=constants.VALIDATION_STEPS
     )
+    print('Total time:', time.time()-start)
 
     # Save it for later
     print('Saving Model')
-    model.save("nsfw." + str(width) + "x" + str(height) + ".h5")
+    model.save("nsfw." + str(width) + "x" + str(height) + '.gpu' + str(nb_gpu) + ".h5")
+
+    # grab the history object dictionary
+    H = history.history
+    
+    # plot the training loss and accuracy
+    N = np.arange(0, len(H["loss"]))
+    plt.style.use("ggplot")
+    plt.figure()
+    plt.plot(N, H["loss"], label="train_loss")
+    plt.plot(N, H["val_loss"], label="test_loss")
+    plt.plot(N, H["acc"], label="train_acc")
+    plt.plot(N, H["val_acc"], label="test_acc")
+    plt.title("Inception Model on NSFW Data")
+    plt.xlabel("Epoch #")
+    plt.ylabel("Loss/Accuracy")
+    plt.legend()
+    
+    # save the figure
+    plt.savefig('gpu_{}_lines.jpg'.format(nb_gpu))
+    plt.close()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("image_dir", type=str, help="Path to image data, which includes train/test folders")
+    parser.add_argument("-m", "--model_file", type=str, help="path to initial model file")
     parser.add_argument("-g", "--gpus", type=int, default=1, help="Number of GPUs")
     args = parser.parse_args()
-    fine_tune_model(args.image_dir, args.gpus)
+    fine_tune_model(args.model_file, args.image_dir, args.gpus)
