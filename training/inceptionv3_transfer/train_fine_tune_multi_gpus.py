@@ -83,7 +83,8 @@ def fine_tune_model(image_dir, nb_gpu):
         train_generator,
         callbacks=callbacks_list,
         epochs=constants.TOTAL_EPOCHS,
-        steps_per_epoch=constants.STEPS_PER_EPOCH,
+        # steps_per_epoch=constants.STEPS_PER_EPOCH,
+        steps_per_epoch=train_generator.samples//(constants.GENERATOR_BATCH_SIZE*nb_gpu),
         shuffle=True,
         # having crazy threading issues
         # set workers to zero if you see an error like: 
