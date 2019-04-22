@@ -22,19 +22,19 @@ validation_datagen = ImageDataGenerator(
 train_dir = os.path.join(constants.BASE_DIR, 'train')
 test_dir = os.path.join(constants.BASE_DIR, 'test')
 
-def create_generators(height, width):
+def create_generators(height, width, nb_gpu=1):
     train_generator = train_datagen.flow_from_directory(
         train_dir,
         target_size=(height, width),
         class_mode='categorical',
-        batch_size=constants.GENERATOR_BATCH_SIZE
+        batch_size=constants.GENERATOR_BATCH_SIZE * nb_gpu
     )
 
     validation_generator = validation_datagen.flow_from_directory(
         test_dir,
         target_size=(height, width),
         class_mode='categorical',
-        batch_size=constants.GENERATOR_BATCH_SIZE
+        batch_size=constants.GENERATOR_BATCH_SIZE * nb_gpu
     )
 
     return[train_generator, validation_generator]
