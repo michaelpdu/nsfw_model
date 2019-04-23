@@ -25,8 +25,7 @@ def schedule(epoch):
 def make_callbacks(weights_file):
     # checkpoint
     filepath = weights_file
-    checkpoint = ModelCheckpoint(
-        filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, mode='max')
 
     # Update info
     tensorboard = TensorBoard(log_dir="logs/{}".format(time()))
