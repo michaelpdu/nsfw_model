@@ -5,7 +5,10 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.backend import clear_session
 from keras.optimizers import SGD
 from pathlib import Path
+from keras.applications import InceptionV3
 from keras.models import Sequential, Model, load_model
+from keras.layers import Dense, Dropout, Flatten, AveragePooling2D
+from keras import initializers, regularizers
 from keras.utils import multi_gpu_model
 import tensorflow as tf
 import numpy as np
@@ -16,44 +19,54 @@ import constants
 import callbacks
 import generators
 
-def init_model(model_file, weights_file):
-    print ('Starting from last full model run')
-    model = load_model(model_file)
+def build_model(weights_file):
+    conv_base = InceptionV3(
+        weights='imagenet', 
+        include_top=False, 
+        input_shape=(height, width, constants.NUM_CHANNELS)
+    )
 
-    # Unlock a few layers deep in Inception v3
-    model.trainable = False
-    set_trainable = False
-    for layer in model.layers:
-        if layer.name == 'conv2d_56':
-            set_trainable = True
-        if set_trainable:
-            layer.trainable = True
-        else:
-            layer.trainable = False
+    # First time run, no unlocking
+    conv_base.trainable = False
 
     # Let's see it
     print('Summary')
-    print(model.summary())
+    print(conv_base.summary())
+
+    # Let's construct that top layer replacement
+    x = conv_base.output
+    x = AveragePooling2D(pool_size=(8, 8))(x)
+    x - Dropout(0.4)(x)
+    x = Flatten()(x)
+    x = Dense(256, activation='relu', kernel_initializer=initializers.he_normal(seed=None), kernel_regularizer=regularizers.l2(.0005))(x)
+    x = Dropout(0.5)(x)
+    # Essential to have another layer for better accuracy
+    x = Dense(128,activation='relu', kernel_initializer=initializers.he_normal(seed=None))(x)
+    x = Dropout(0.25)(x)
+    predictions = Dense(constants.NUM_CLASSES,  kernel_initializer="glorot_uniform", activation='softmax')(x)
+
+    print('Stacking New Layers')
+    model = Model(inputs = conv_base.input, outputs=predictions)
 
     # Load checkpoint if one is found
     if os.path.exists(weights_file):
-            print ("loading ", weights_file)
-            model.load_weights(weights_file)
+        print ("loading ", weights_file)
+        model.load_weights(weights_file)
+
     return model
 
-def fine_tune_model(model_file, image_dir, nb_gpu):
+def train_model(image_dir, nb_gpu):
     # No kruft plz
     clear_session()
 
     # Config
     height = constants.SIZES['basic']
     width = height
-    # model_file = "nsfw." + str(width) + "x" + str(height) + ".h5"
     weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
-        model = init_model(model_file, weights_file)
+        model = build_model(weights_file)
     else:
         print("[INFO] training with {} GPUs...".format(nb_gpu))
     
@@ -61,7 +74,7 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
         # the results from the gradient updates on the CPU
         with tf.device("/cpu:0"):
             # initialize the model
-            model = init_model(model_file, weights_file)
+            model = build_model(weights_file)
         
         # make the model parallel
         model = multi_gpu_model(model, gpus=nb_gpu)
@@ -70,6 +83,8 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
     callbacks_list = callbacks.make_callbacks(weights_file)
 
     print('Compile model')
+    # originally adam, but research says SGD with scheduler
+    # opt = Adam(lr=0.001, amsgrad=True)
     opt = SGD(momentum=.9)
     model.compile(
         loss='categorical_crossentropy',
@@ -78,7 +93,7 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
     )
 
     # Get training/validation data via generators
-    train_generator, validation_generator = generators.create_generators(\
+    train_generator, validation_generator = generators.create_generators( \
         height, width, image_dir=image_dir, nb_gpu=nb_gpu)
 
     print('Start training!')
@@ -102,6 +117,7 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
 
     # Save it for later
     print('Saving Model')
+    # model.save("nsfw." + str(width) + "x" + str(height) + ".h5")
     model.save("nsfw." + str(width) + "x" + str(height) + '.gpu' + str(nb_gpu) + ".h5")
 
     # grab the history object dictionary
@@ -127,7 +143,6 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("image_dir", type=str, help="Path to image data, which includes train/test folders")
-    parser.add_argument("-m", "--model_file", type=str, help="path to initial model file")
     parser.add_argument("-g", "--gpus", type=int, default=1, help="Number of GPUs")
     args = parser.parse_args()
-    fine_tune_model(args.model_file, args.image_dir, args.gpus)
+    train_model(args.image_dir, args.gpus)
