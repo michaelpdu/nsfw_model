@@ -17,7 +17,7 @@ import constants
 import callbacks
 import generators
 
-def init_model(model_file, weights_file):
+def init_model(model_file):
     print ('Starting from last full model run')
     model = load_model(model_file)
 
@@ -36,10 +36,6 @@ def init_model(model_file, weights_file):
     print('Summary')
     print(model.summary())
 
-    # Load checkpoint if one is found
-    if os.path.exists(weights_file):
-            print ("loading ", weights_file)
-            model.load_weights(weights_file)
     return model
 
 def fine_tune_model(model_file, image_dir, nb_gpu):
@@ -50,11 +46,11 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
     height = constants.SIZES['basic']
     width = height
     # model_file = "nsfw." + str(width) + "x" + str(height) + ".h5"
-    weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
+    weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".h5"
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
-        model = init_model(model_file, weights_file)
+        model = init_model(model_file)
     else:
         print("[INFO] training with {} GPUs...".format(nb_gpu))
     
@@ -62,7 +58,7 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
         # the results from the gradient updates on the CPU
         with tf.device("/cpu:0"):
             # initialize the model
-            model = init_model(model_file, weights_file)
+            model = init_model(model_file)
         
         # make the model parallel
         model = multi_gpu_model(model, gpus=nb_gpu)
@@ -100,7 +96,8 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
         # having crazy threading issues
         # set workers to zero if you see an error like: 
         # `freeze_support()`
-        workers=0,
+        max_queue_size=100,
+        workers=96,
         use_multiprocessing=True,
         validation_data=validation_generator,
         validation_steps=constants.VALIDATION_STEPS
