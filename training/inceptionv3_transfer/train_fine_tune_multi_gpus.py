@@ -6,6 +6,7 @@ from keras.backend import clear_session
 from keras.optimizers import SGD
 from pathlib import Path
 from keras.models import Sequential, Model, load_model
+from keras.layers import Dense
 from keras.utils import multi_gpu_model
 import tensorflow as tf
 import numpy as np
