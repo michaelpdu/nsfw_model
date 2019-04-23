@@ -66,6 +66,12 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
         # make the model parallel
         model = multi_gpu_model(model, gpus=nb_gpu)
 
+        # add dense layer for merged model
+        x = model.output
+        channel = x.shape[1]
+        predictions = Dense(channel,  kernel_initializer="glorot_uniform", activation='softmax')(x)
+        model = Model(inputs = model.input, outputs=predictions)
+
     # Get all model callbacks
     callbacks_list = callbacks.make_callbacks(weights_file)
 
