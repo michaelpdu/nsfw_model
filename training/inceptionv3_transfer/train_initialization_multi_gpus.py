@@ -19,9 +19,9 @@ import constants
 import callbacks
 import generators
 
-def build_model(weights_file, shape):
+def build_model(weights_file, shape, nb_output):
+    print('shape:', shape)
     conv_base = InceptionV3(weights='imagenet', include_top=False, input_shape=shape)
-    channel = shape[3]
     
     # First time run, no unlocking
     conv_base.trainable = False
@@ -40,7 +40,7 @@ def build_model(weights_file, shape):
     # Essential to have another layer for better accuracy
     x = Dense(128,activation='relu', kernel_initializer=initializers.he_normal(seed=None))(x)
     x = Dropout(0.25)(x)
-    predictions = Dense(channel,  kernel_initializer="glorot_uniform", activation='softmax')(x)
+    predictions = Dense(nb_output,  kernel_initializer="glorot_uniform", activation='softmax')(x)
 
     print('Stacking New Layers')
     model = Model(inputs = conv_base.input, outputs=predictions)
@@ -59,12 +59,12 @@ def train_model(image_dir, nb_gpu):
     # Config
     height = constants.SIZES['basic']
     width = height
-    channel = constants.NUM_CLASSES
+    nb_classes = constants.NUM_CLASSES
     weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
-        model = build_model(weights_file, shape=(height, width, channel))
+        model = build_model(weights_file, shape=(height, width, 3), nb_output=nb_classes)
     else:
         print("[INFO] training with {} GPUs...".format(nb_gpu))
     
@@ -72,7 +72,7 @@ def train_model(image_dir, nb_gpu):
         # the results from the gradient updates on the CPU
         with tf.device("/cpu:0"):
             # initialize the model
-            model = build_model(weights_file, shape=(height, width, channel))
+            model = build_model(weights_file, shape=(height, width, 3), nb_output=nb_classes)
         
         # make the model parallel
         model = multi_gpu_model(model, gpus=nb_gpu)
