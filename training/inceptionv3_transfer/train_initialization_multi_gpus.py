@@ -61,7 +61,7 @@ def build_model(weights_file, type='inception_v3', shape=(299,299,3), nb_output=
 
     return model
 
-def train_model(model_type, image_dir, nb_gpu):
+def train_model(model_type, weights_file, image_dir, nb_gpu):
     # No kruft plz
     clear_session()
 
@@ -69,7 +69,6 @@ def train_model(model_type, image_dir, nb_gpu):
     height = constants.SIZES['basic']
     width = height
     nb_classes = constants.NUM_CLASSES
-    weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
@@ -85,6 +84,9 @@ def train_model(model_type, image_dir, nb_gpu):
         
         # make the model parallel
         model = multi_gpu_model(model, gpus=nb_gpu)
+
+    if not os.path.exists(weights_file):
+        weights_file = "weights.{}.{}.gpu{}.hdf5".format(model_type, height, nb_gpu)
 
     # Get all model callbacks
     callbacks_list = callbacks.make_callbacks(weights_file)
@@ -152,7 +154,8 @@ if __name__ == "__main__":
     parser.add_argument("image_dir", type=str, \
         help="Path to image data, which includes train/test folders")
     parser.add_argument("-g", "--gpus", type=int, default=1, help="Number of GPUs")
+    parser.add_argument("-w", "--weights_file", type=str, default='', help="Path to weights_file")
     parser.add_argument("-t", "--type", type=str, default='inception_v3', \
         help="Model type, inception_v3|inception_resnet_v2")
     args = parser.parse_args()
-    train_model(args.type, args.image_dir, args.gpus)
+    train_model(args.type, args.weights_file, args.image_dir, args.gpus)
