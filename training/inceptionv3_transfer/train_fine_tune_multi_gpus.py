@@ -56,7 +56,7 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
     height = constants.SIZES['basic']
     width = height
     # model_file = "nsfw." + str(width) + "x" + str(height) + ".h5"
-    weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
+    weights_file = "weights.tune.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
