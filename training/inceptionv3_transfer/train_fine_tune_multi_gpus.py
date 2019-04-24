@@ -19,7 +19,7 @@ import constants
 import callbacks
 import generators
 
-def init_model(model_file):
+def init_model(model_file, weights_file=None):
     print ('Starting from last full model run')
     model = load_model(model_file)
 
@@ -38,6 +38,11 @@ def init_model(model_file):
     print('Summary')
     print(model.summary())
 
+    # Load checkpoint if one is found
+    if weights_file and os.path.exists(weights_file):
+        print ("loading ", weights_file)
+        model.load_weights(weights_file)
+
     return model
 
 def fine_tune_model(model_file, image_dir, nb_gpu):
@@ -48,11 +53,11 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
     height = constants.SIZES['basic']
     width = height
     # model_file = "nsfw." + str(width) + "x" + str(height) + ".h5"
-    weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".h5"
+    weights_file = "weights.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
-        model = init_model(model_file)
+        model = init_model(model_file, weights_file)
     else:
         print("[INFO] training with {} GPUs...".format(nb_gpu))
     
