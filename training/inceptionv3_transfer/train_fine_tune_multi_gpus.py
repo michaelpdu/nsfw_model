@@ -19,6 +19,9 @@ import constants
 import callbacks
 import generators
 
+import multiprocessing
+NUM_CPU = multiprocessing.cpu_count()
+
 def init_model(model_file, weights_file=None):
     print ('Starting from last full model run')
     model = load_model(model_file)
@@ -105,7 +108,7 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
         # set workers to zero if you see an error like: 
         # `freeze_support()`
         max_queue_size=100,
-        workers=96,
+        workers=NUM_CPU,
         use_multiprocessing=True,
         validation_data=validation_generator,
         validation_steps=constants.VALIDATION_STEPS

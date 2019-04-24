@@ -20,6 +20,9 @@ import constants
 import callbacks
 import generators
 
+import multiprocessing
+NUM_CPU = multiprocessing.cpu_count()
+
 def build_model(weights_file, shape, nb_output):
     print('shape:', shape)
     conv_base = InceptionV3(weights='imagenet', include_top=False, input_shape=shape)
@@ -107,7 +110,8 @@ def train_model(image_dir, nb_gpu):
         # having crazy threading issues
         # set workers to zero if you see an error like: 
         # `freeze_support()`
-        workers=0,
+        max_queue_size=100,
+        workers=NUM_CPU,
         use_multiprocessing=True,
         validation_data=validation_generator,
         validation_steps=constants.VALIDATION_STEPS
