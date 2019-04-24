@@ -6,7 +6,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.backend import clear_session
 from keras.optimizers import SGD
 from pathlib import Path
-from keras.applications import InceptionV3
+from keras.applications import InceptionV3, InceptionResNetV2
 from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Dropout, Flatten, AveragePooling2D
 from keras import initializers, regularizers
@@ -23,10 +23,15 @@ import generators
 import multiprocessing
 NUM_CPU = multiprocessing.cpu_count()
 
-def build_model(weights_file, shape, nb_output):
+def build_model(weights_file, type='inception_v3', shape=(299,299,3), nb_output=5):
     print('shape:', shape)
-    conv_base = InceptionV3(weights='imagenet', include_top=False, input_shape=shape)
-    
+    if type == 'inception_v3':
+        conv_base = InceptionV3(weights='imagenet', include_top=False, input_shape=shape)
+    elif type == 'inception_resnet_v2':
+        conv_base = InceptionResNetV2(weights='imagenet', include_top=False, input_shape=shape)
+    else:
+        raise Exception('Unsupported Model Type!')
+
     # First time run, no unlocking
     conv_base.trainable = False
 
@@ -56,7 +61,7 @@ def build_model(weights_file, shape, nb_output):
 
     return model
 
-def train_model(image_dir, nb_gpu):
+def train_model(model_type, image_dir, nb_gpu):
     # No kruft plz
     clear_session()
 
@@ -68,7 +73,7 @@ def train_model(image_dir, nb_gpu):
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
-        model = build_model(weights_file, shape=(height, width, 3), nb_output=nb_classes)
+        model = build_model(weights_file, type=model_type, shape=(height, width, 3), nb_output=nb_classes)
     else:
         print("[INFO] training with {} GPUs...".format(nb_gpu))
     
@@ -76,7 +81,7 @@ def train_model(image_dir, nb_gpu):
         # the results from the gradient updates on the CPU
         with tf.device("/cpu:0"):
             # initialize the model
-            model = build_model(weights_file, shape=(height, width, 3), nb_output=nb_classes)
+            model = build_model(weights_file, type=model_type, shape=(height, width, 3), nb_output=nb_classes)
         
         # make the model parallel
         model = multi_gpu_model(model, gpus=nb_gpu)
@@ -119,9 +124,8 @@ def train_model(image_dir, nb_gpu):
     print('Total time:', time.time()-start)
 
     # Save it for later
-    print('Saving Model')
-    # model.save("nsfw." + str(width) + "x" + str(height) + ".h5")
-    model.save("nsfw." + str(width) + "x" + str(height) + '.gpu' + str(nb_gpu) + ".h5")
+    print('Saving Model ...')
+    model.save("nsfw.{}x{}.{}.gpu{}.h5".format(width, height, model_type, nb_gpu))
 
     # grab the history object dictionary
     H = history.history
@@ -145,7 +149,10 @@ def train_model(image_dir, nb_gpu):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("image_dir", type=str, help="Path to image data, which includes train/test folders")
+    parser.add_argument("image_dir", type=str, \
+        help="Path to image data, which includes train/test folders")
     parser.add_argument("-g", "--gpus", type=int, default=1, help="Number of GPUs")
+    parser.add_argument("-t", "--type", type=str, default='inception_v3', \
+        help="Model type, inception_v3|inception_resnet_v2")
     args = parser.parse_args()
-    train_model(args.image_dir, args.gpus)
+    train_model(args.type, args.image_dir, args.gpus)

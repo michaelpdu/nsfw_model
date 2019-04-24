@@ -22,7 +22,7 @@ import generators
 import multiprocessing
 NUM_CPU = multiprocessing.cpu_count()
 
-def init_model(model_file, weights_file=None):
+def init_model(model_file, model_type='inception_v3', weights_file=None):
     print ('Starting from last full model run')
     model = load_model(model_file)
 
@@ -48,7 +48,7 @@ def init_model(model_file, weights_file=None):
 
     return model
 
-def fine_tune_model(model_file, image_dir, nb_gpu):
+def fine_tune_model(model_file, model_type, image_dir, nb_gpu):
     # No kruft plz
     clear_session()
 
@@ -60,7 +60,7 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
-        model = init_model(model_file, weights_file)
+        model = init_model(model_file, model_type=model_type, weights_file=weights_file)
     else:
         print("[INFO] training with {} GPUs...".format(nb_gpu))
     
@@ -116,8 +116,8 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
     print('Total time:', time.time()-start)
 
     # Save it for later
-    print('Saving Model')
-    model.save("nsfw." + str(width) + "x" + str(height) + '.gpu' + str(nb_gpu) + ".h5")
+    print('Saving Model ...')
+    model.save("nsfw.{}x{}.{}.gpu{}.h5".format(width, height, model_type, nb_gpu))
 
     # grab the history object dictionary
     H = history.history
@@ -141,8 +141,11 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("image_dir", type=str, help="Path to image data, which includes train/test folders")
+    parser.add_argument("image_dir", type=str, \
+        help="Path to image data, which includes train/test folders")
     parser.add_argument("-m", "--model_file", type=str, help="path to initial model file")
+    parser.add_argument("-t", "--type", type=str, default='inception_v3', \
+        help="Model type, inception_v3|inception_resnet_v2")
     parser.add_argument("-g", "--gpus", type=int, default=1, help="Number of GPUs")
     args = parser.parse_args()
-    fine_tune_model(args.model_file, args.image_dir, args.gpus)
+    fine_tune_model(args.model_file, args.type, args.image_dir, args.gpus)
