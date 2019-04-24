@@ -1,4 +1,6 @@
 import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import time
 import argparse
 from keras.preprocessing.image import ImageDataGenerator
@@ -63,11 +65,12 @@ def fine_tune_model(model_file, image_dir, nb_gpu):
         # make the model parallel
         model = multi_gpu_model(model, gpus=nb_gpu)
 
-        # add dense layer for merged model
-        x = model.output
-        channel = x.shape[1]
-        predictions = Dense(channel,  kernel_initializer="glorot_uniform", activation='softmax')(x)
-        model = Model(inputs = model.input, outputs=predictions)
+        # # add dense layer for merged model
+        # from keras import backend as K
+        # x = model.output
+        # predictions = K.bias_add(x, 0)
+        # # predictions = Dense(2)(x)
+        # model = Model(inputs = model.input, outputs=predictions)
 
     # Get all model callbacks
     callbacks_list = callbacks.make_callbacks(weights_file)
