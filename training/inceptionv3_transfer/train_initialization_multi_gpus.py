@@ -136,7 +136,7 @@ def train_model(image_dir, nb_gpu):
     plt.legend()
     
     # save the figure
-    plt.savefig('gpu_{}_lines.jpg'.format(nb_gpu))
+    plt.savefig('gpu_{}_train_lines.jpg'.format(nb_gpu))
     plt.close()
 
 if __name__ == "__main__":
