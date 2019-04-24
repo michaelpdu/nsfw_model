@@ -22,7 +22,7 @@ import generators
 import multiprocessing
 NUM_CPU = multiprocessing.cpu_count()
 
-def init_model(model_file, model_type='inception_v3', weights_file=None):
+def init_model(model_file, model_type='inception_v3', weights_file=''):
     print ('Starting from last full model run')
     model = load_model(model_file)
 
@@ -42,21 +42,19 @@ def init_model(model_file, model_type='inception_v3', weights_file=None):
     print(model.summary())
 
     # Load checkpoint if one is found
-    if weights_file and os.path.exists(weights_file):
+    if os.path.exists(weights_file):
         print ("loading ", weights_file)
         model.load_weights(weights_file)
 
     return model
 
-def fine_tune_model(model_file, model_type, image_dir, nb_gpu):
+def fine_tune_model(model_file, weights_file, model_type, image_dir, nb_gpu):
     # No kruft plz
     clear_session()
 
     # Config
     height = constants.SIZES['basic']
     width = height
-    # model_file = "nsfw." + str(width) + "x" + str(height) + ".h5"
-    weights_file = "weights.tune.best_inception_" + str(height) + '_gpu' + str(nb_gpu) + ".hdf5"
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
@@ -80,6 +78,8 @@ def fine_tune_model(model_file, model_type, image_dir, nb_gpu):
         # # predictions = Dense(2)(x)
         # model = Model(inputs = model.input, outputs=predictions)
 
+    if not os.path.exists(weights_file):
+        weights_file = "weights.tune.{}.{}.gpu{}.hdf5".format(model_type, height, nb_gpu)
     # Get all model callbacks
     callbacks_list = callbacks.make_callbacks(weights_file)
 
@@ -147,5 +147,6 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--type", type=str, default='inception_v3', \
         help="Model type, inception_v3|inception_resnet_v2")
     parser.add_argument("-g", "--gpus", type=int, default=1, help="Number of GPUs")
+    parser.add_argument("-w", "--weights_file", type=str, default='', help="path to weights_file")
     args = parser.parse_args()
-    fine_tune_model(args.model_file, args.type, args.image_dir, args.gpus)
+    fine_tune_model(args.model_file, args.weights_file, args.type, args.image_dir, args.gpus)
