@@ -169,7 +169,7 @@ if __name__ == "__main__":
         help="Model type, inception_v3|inception_resnet_v2|resnet50|...")
     parser.add_argument("-G", "--gpu_index", type=str, default='1', \
         help="GPU index for running limitation, start form 0.")
-    parser.add_argument("-e", "--total_epochs", type=int, default=100, \
+    parser.add_argument("-e", "--total_epochs", type=int, default=20, \
         help="Total epochs for training.")
     parser.add_argument("-b", "--batch_size", type=int, default=32, \
         help="Batch size for training.")
