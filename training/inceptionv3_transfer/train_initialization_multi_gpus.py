@@ -109,8 +109,12 @@ def train_model(model_type, weights_file, image_dir, batch_size, total_epochs, n
     )
 
     # Get training/validation data via generators
+    if model_type in ['resnet50']:
+        mode = 'caffe'
+    else:
+        mode = 'tf'
     train_generator, validation_generator = generators.create_generators( \
-        height, width, image_dir=image_dir, batch_s=batch_size, nb_gpu=nb_gpu)
+        height, width, image_dir=image_dir, batch_s=batch_size, mode=mode, nb_gpu=nb_gpu)
 
     print('Start training!')
     cpu_count = multiprocessing.cpu_count()
