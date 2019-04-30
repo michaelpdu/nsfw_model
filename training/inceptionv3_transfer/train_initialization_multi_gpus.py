@@ -1,5 +1,4 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import time
 import argparse
 from keras.preprocessing.image import ImageDataGenerator
@@ -21,7 +20,6 @@ import callbacks
 import generators
 
 import multiprocessing
-NUM_CPU = multiprocessing.cpu_count()
 
 def build_model(weights_file, type='inception_v3', shape=(299,299,3), nb_output=5):
     print('shape:', shape)
@@ -63,14 +61,13 @@ def build_model(weights_file, type='inception_v3', shape=(299,299,3), nb_output=
 
     return model
 
-def train_model(model_type, weights_file, image_dir, nb_gpu):
+def train_model(model_type, weights_file, image_dir, batch_size, total_epochs, nb_classes, nb_gpu, output_filename=None):
     # No kruft plz
     clear_session()
 
     # Config
     height = constants.SIZES['basic']
     width = height
-    nb_classes = constants.NUM_CLASSES
 
     if nb_gpu <= 1:
         print("[INFO] training with 1 GPU...")
@@ -87,13 +84,16 @@ def train_model(model_type, weights_file, image_dir, nb_gpu):
         # make the model parallel
         model = multi_gpu_model(model, gpus=nb_gpu)
 
+        print(model.summary())
+
         x = model.output
+        print('multi gpu output:', x)
         x = Flatten()(x)
         predictions = Dense(nb_output, activation='softmax', name='new_outputs')(x)
         model = Model(inputs = model.input, outputs=predictions)
 
     if not os.path.exists(weights_file):
-        weights_file = "weights.{}.{}.gpu{}.hdf5".format(model_type, height, nb_gpu)
+        weights_file = "weights.{}.{}.gpu{}.epoch{}.batch{}.cls{}.hdf5".format(model_type, height, nb_gpu, total_epochs, batch_size, nb_classes)
 
     # Get all model callbacks
     callbacks_list = callbacks.make_callbacks(weights_file)
@@ -110,22 +110,22 @@ def train_model(model_type, weights_file, image_dir, nb_gpu):
 
     # Get training/validation data via generators
     train_generator, validation_generator = generators.create_generators( \
-        height, width, image_dir=image_dir, nb_gpu=nb_gpu)
+        height, width, image_dir=image_dir, batch_s=batch_size, nb_gpu=nb_gpu)
 
     print('Start training!')
+    cpu_count = multiprocessing.cpu_count()
     start = time.time()
     history = model.fit_generator(
         train_generator,
         callbacks=callbacks_list,
-        epochs=constants.TOTAL_EPOCHS,
-        # steps_per_epoch=constants.STEPS_PER_EPOCH,
-        steps_per_epoch=train_generator.samples//(constants.GENERATOR_BATCH_SIZE*nb_gpu),
+        epochs=total_epochs,
+        steps_per_epoch=train_generator.samples//(batch_size*nb_gpu),
         shuffle=True,
         # having crazy threading issues
         # set workers to zero if you see an error like: 
         # `freeze_support()`
         max_queue_size=100,
-        workers=NUM_CPU,
+        workers=cpu_count,
         use_multiprocessing=True,
         validation_data=validation_generator,
         validation_steps=constants.VALIDATION_STEPS
@@ -134,7 +134,10 @@ def train_model(model_type, weights_file, image_dir, nb_gpu):
 
     # Save it for later
     print('Saving Model ...')
-    model.save("nsfw.{}x{}.{}.gpu{}.h5".format(width, height, model_type, nb_gpu))
+    output = "nsfw.{}x{}.{}.gpu{}.h5".format(width, height, model_type, nb_gpu)
+    if output_filename is not None:
+       output = output_filename 
+    model.save(output)
 
     # grab the history object dictionary
     H = history.history
@@ -164,5 +167,20 @@ if __name__ == "__main__":
     parser.add_argument("-w", "--weights_file", type=str, default='', help="Path to weights_file")
     parser.add_argument("-t", "--type", type=str, default='inception_v3', \
         help="Model type, inception_v3|inception_resnet_v2|resnet50|...")
+    parser.add_argument("-G", "--gpu_index", type=str, default='1', \
+        help="GPU index for running limitation, start form 0.")
+    parser.add_argument("-e", "--total_epochs", type=int, default=20, \
+        help="Total epochs for training.")
+    parser.add_argument("-b", "--batch_size", type=int, default=32, \
+        help="Batch size for training.")
+    parser.add_argument("-c", "--nb_classes", type=int, default=2, \
+        help="Number of classes.")
+    parser.add_argument("-o", "--output", type=str, \
+        help="Output model filename.")
     args = parser.parse_args()
-    train_model(args.type, args.weights_file, args.image_dir, args.gpus)
+    print('Output:', args.output) 
+    os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_index
+    train_model(model_type=args.type, weights_file=args.weights_file, \
+                image_dir=args.image_dir, batch_size=args.batch_size, \
+                total_epochs=args.total_epochs, nb_classes=args.nb_classes, \
+                nb_gpu=args.gpus, output_filename=args.output)

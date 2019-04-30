@@ -9,7 +9,11 @@ def preprocessing_function_caffe(x):
 def preprocessing_function_tf(x):
     return preprocess_input(x, data_format='channels_last', mode='tf')
 
-def create_generators(height, width, image_dir=constants.BASE_DIR, mode='caffe', nb_gpu=1):
+def create_generators(height, width, \
+                    image_dir=constants.BASE_DIR, \
+                    batch_s=constants.GENERATOR_BATCH_SIZE, \
+                    mode='caffe', nb_gpu=1):
+
     print('Base dir:', image_dir)
     train_dir = os.path.join(image_dir, 'train')
     test_dir = os.path.join(image_dir, 'test')
@@ -42,14 +46,14 @@ def create_generators(height, width, image_dir=constants.BASE_DIR, mode='caffe',
         train_dir,
         target_size=(height, width),
         class_mode='categorical',
-        batch_size=constants.GENERATOR_BATCH_SIZE * nb_gpu
+        batch_size=batch_s*nb_gpu
     )
 
     validation_generator = validation_datagen.flow_from_directory(
         test_dir,
         target_size=(height, width),
         class_mode='categorical',
-        batch_size=constants.GENERATOR_BATCH_SIZE * nb_gpu
+        batch_size=batch_s*nb_gpu
     )
 
     return[train_generator, validation_generator]
